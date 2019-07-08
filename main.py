@@ -116,11 +116,11 @@ params_path = {'path_to_features': os.path.join(path_root_data, 'features'),
                'gt_files': os.path.join(path_root_data, 'FSDnoisy18k.meta')}
 
 
-params_path['featurepath_tr'] = os.path.join(params_path.get('path_to_features'), params_path.get('featuredir_tr')).replace("\\","/")
-params_path['featurepath_te'] = os.path.join(params_path.get('path_to_features'), params_path.get('featuredir_te')).replace("\\","/")
+params_path['featurepath_tr'] = os.path.join(params_path.get('path_to_features'), params_path.get('featuredir_tr'))
+params_path['featurepath_te'] = os.path.join(params_path.get('path_to_features'), params_path.get('featuredir_te'))
 
-params_path['audiopath_tr'] = os.path.join(params_path.get('path_to_dataset'), params_path.get('audiodir_tr')).replace("\\","/")
-params_path['audiopath_te'] = os.path.join(params_path.get('path_to_dataset'), params_path.get('audiodir_te')).replace("\\","/")
+params_path['audiopath_tr'] = os.path.join(params_path.get('path_to_dataset'), params_path.get('audiodir_tr'))
+params_path['audiopath_te'] = os.path.join(params_path.get('path_to_dataset'), params_path.get('audiodir_te'))
 
 params_path['audio_shapepath_tr'] = os.path.join(params_path.get('path_to_dataset'),
                                                  params_path.get('audio_shapedir_tr'))
@@ -384,12 +384,10 @@ if params_ctrl.get('learn'):
     model.compile(optimizer=opt, loss=params_loss.get('type'), metrics=['accuracy'])
 
     # callbacks
-    # filepath = "C:/LeoraProjects/bootcamp/codebase_project/codebase/icassp19/data/FSDnoisy18k/weights.best.hdf5"
-    #checkpoint = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
     tensorboard = TensorBoard(log_dir='./logsvgg', histogram_freq=0, batch_size=5, write_graph=True, write_grads=False, write_images=False, embeddings_freq=0, embeddings_layer_names=None, embeddings_metadata=None, embeddings_data=None, update_freq='epoch')
     early_stop = EarlyStopping(monitor='val_acc', patience=params_learn.get('patience'), min_delta=0.001, verbose=0)
     reduce_lr = ReduceLROnPlateau(monitor='val_acc', factor=0.5, patience=5, verbose=1)
-    callback_list = [early_stop, reduce_lr, tensorboard]
+    callback_list = [early_stop, reduce_lr]
 
     hist = model.fit_generator(tr_gen_patch,
                                steps_per_epoch=tr_gen_patch.nb_iterations,
