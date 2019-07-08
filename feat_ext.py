@@ -65,7 +65,7 @@ def get_normalized_audio(y, head_room=0.005):
     mean_value = np.mean(y)
     y -= mean_value
 
-    max_value = max(abs(y)) + head_room
+    max_value = np.max(abs(y)) + head_room
     return y / max_value
 
 

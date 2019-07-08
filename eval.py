@@ -55,6 +55,8 @@ class Evaluator (object):
             predicted_match = self.predictions.loc[self.predictions['fname'] == row_gt['fname']]
             for idx_pred, row_pred in predicted_match.iterrows():
                 pred_per_file = row_pred['label']
+                print("Prediction for this file:",pred_per_file)
+                print("Real label:", row_gt['label'])
                 scores[row_gt['label']]['nb_files'] += 1
                 # computing ACCURACY and saving it in the due class
                 scores[row_gt['label']]['acc_cum'] += get_accuracy(actual=row_gt['label'], predicted=pred_per_file)

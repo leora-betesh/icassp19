@@ -23,16 +23,15 @@ from scipy.stats import gmean
 import yaml
 
 from keras.optimizers import Adam
-from keras.callbacks import EarlyStopping, ReduceLROnPlateau
+from keras.callbacks import EarlyStopping, ReduceLROnPlateau, ModelCheckpoint, TensorBoard
 
 import utils
 from feat_ext import load_audio_file, get_mel_spectrogram, modify_file_variable_length
 from data import get_label_files, DataGeneratorPatch, PatchGeneratorPerFile, DataGeneratorPatchOrigin
-from architectures import get_model_baseline
+from architectures import get_model_baseline, get_vggish_model
 from eval import Evaluator
 from losses import lq_loss_wrap, crossentropy_max_wrap, crossentropy_outlier_wrap, crossentropy_reed_wrap,\
     crossentropy_max_origin_wrap, crossentropy_outlier_origin_wrap, lq_loss_origin_wrap, crossentropy_reed_origin_wrap
-
 
 start = time.time()
 
@@ -59,7 +58,7 @@ print('\nYaml file with parameters defining the experiment: %s\n' % str(args.par
 # =========================================================================Parameters, paths and variables
 
 # Read parameters file from yaml passed by argument
-params = yaml.load(open(args.params_yaml))
+params = yaml.load(open(args.params_yaml), Loader=yaml.SafeLoader)
 params_ctrl = params['ctrl']
 params_extract = params['extract']
 params_learn = params['learn']
@@ -104,6 +103,7 @@ params_extract['audio_len_samples'] = int(params_extract.get('fs') * params_extr
 # ======================================================== PATHS FOR DATA, FEATURES and GROUND TRUTH
 # where to look for the dataset
 path_root_data = params_ctrl.get('dataset_path')
+path_weights = params_ctrl.get('vggish_weights_path')
 
 params_path = {'path_to_features': os.path.join(path_root_data, 'features'),
                'featuredir_tr': 'audio_train_varup2/',
@@ -116,11 +116,11 @@ params_path = {'path_to_features': os.path.join(path_root_data, 'features'),
                'gt_files': os.path.join(path_root_data, 'FSDnoisy18k.meta')}
 
 
-params_path['featurepath_tr'] = os.path.join(params_path.get('path_to_features'), params_path.get('featuredir_tr'))
-params_path['featurepath_te'] = os.path.join(params_path.get('path_to_features'), params_path.get('featuredir_te'))
+params_path['featurepath_tr'] = os.path.join(params_path.get('path_to_features'), params_path.get('featuredir_tr')).replace("\\","/")
+params_path['featurepath_te'] = os.path.join(params_path.get('path_to_features'), params_path.get('featuredir_te')).replace("\\","/")
 
-params_path['audiopath_tr'] = os.path.join(params_path.get('path_to_dataset'), params_path.get('audiodir_tr'))
-params_path['audiopath_te'] = os.path.join(params_path.get('path_to_dataset'), params_path.get('audiodir_te'))
+params_path['audiopath_tr'] = os.path.join(params_path.get('path_to_dataset'), params_path.get('audiodir_tr')).replace("\\","/")
+params_path['audiopath_te'] = os.path.join(params_path.get('path_to_dataset'), params_path.get('audiodir_te')).replace("\\","/")
 
 params_path['audio_shapepath_tr'] = os.path.join(params_path.get('path_to_dataset'),
                                                  params_path.get('audio_shapedir_tr'))
@@ -166,7 +166,7 @@ idx_flagveri = [i for i, x in enumerate(filelist_audio_tr_flagveri) if x == 1]
 idx_flagnonveri = [i for i, x in enumerate(filelist_audio_tr_flagveri) if x == 0]
 
 # create list of ids that come from the noisy set
-noisy_ids = [int(filelist_audio_tr[i].split('.')[0]) for i in idx_flagnonveri]
+noisy_ids = []
 params_learn['noisy_ids'] = noisy_ids
 
 # get positions of clips of noisy_small subset
@@ -210,7 +210,7 @@ if params_ctrl.get('feat_ext'):
     # create folder and extract features
     nb_files_tr = len(filelist_audio_tr)
     if not os.path.exists(params_path.get('featurepath_tr')) or \
-                    len(os.listdir(params_path.get('featurepath_tr'))) < nb_files_tr*0.8:
+               len(os.listdir(params_path.get('featurepath_tr'))) < nb_files_tr*0.8:
         os.makedirs(params_path.get('featurepath_tr'))
         os.makedirs(params_path.get('featurepath_te'))
 
@@ -378,17 +378,18 @@ else:
 tr_loss, val_loss = [0] * params_learn.get('n_epochs'), [0] * params_learn.get('n_epochs')
 # ============================================================
 if params_ctrl.get('learn'):
-
-    model = get_model_baseline(params_learn=params_learn, params_extract=params_extract)
-
+    #model = get_model_baseline(params_learn=params_learn, params_extract=params_extract)
+    model = get_vggish_model(path_weights=path_weights, params_extract=params_extract)
     opt = Adam(lr=params_learn.get('lr'))
     model.compile(optimizer=opt, loss=params_loss.get('type'), metrics=['accuracy'])
-    model.summary()
 
     # callbacks
-    early_stop = EarlyStopping(monitor='val_acc', patience=params_learn.get('patience'), min_delta=0.001, verbose=1)
+    # filepath = "C:/LeoraProjects/bootcamp/codebase_project/codebase/icassp19/data/FSDnoisy18k/weights.best.hdf5"
+    #checkpoint = ModelCheckpoint(filepath, monitor='val_acc', verbose=1, save_best_only=True, mode='max')
+    tensorboard = TensorBoard(log_dir='./logsvgg', histogram_freq=0, batch_size=5, write_graph=True, write_grads=False, write_images=False, embeddings_freq=0, embeddings_layer_names=None, embeddings_metadata=None, embeddings_data=None, update_freq='epoch')
+    early_stop = EarlyStopping(monitor='val_acc', patience=params_learn.get('patience'), min_delta=0.001, verbose=0)
     reduce_lr = ReduceLROnPlateau(monitor='val_acc', factor=0.5, patience=5, verbose=1)
-    callback_list = [early_stop, reduce_lr]
+    callback_list = [early_stop, reduce_lr, tensorboard]
 
     hist = model.fit_generator(tr_gen_patch,
                                steps_per_epoch=tr_gen_patch.nb_iterations,
@@ -397,9 +398,8 @@ if params_ctrl.get('learn'):
                                validation_steps=val_gen_patch.nb_iterations,
                                class_weight=None,
                                workers=4,
-                               verbose=2,
+                               verbose=0,
                                callbacks=callback_list)
-
 
 # ==================================================================================================== PREDICT
 # ==================================================================================================== PREDICT
