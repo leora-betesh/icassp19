@@ -34,13 +34,14 @@ def get_vggish_model(input_shape=None, out_dim=128, path_weights=None, params_ex
     out = Dense(out_dim, activation='relu', name='vggish_fc2')(x)
 
     model = Model(inputs=aud_input, outputs=out, name='VGGish')
+    model.summary()
     model.load_weights(path_weights)
-    for layer in model.layers[:8]:
+    for layer in model.layers[:12]:
         layer.trainable = False
 
     out_vggish = model.get_layer('vggish_fc2').output
 
-    out = Dense(3, kernel_initializer='he_normal', kernel_regularizer=l2(1e-3), activation='softmax', name='prediction')(out_vggish)
+    out = Dense(10, kernel_initializer='he_normal', kernel_regularizer=l2(1e-3), activation='softmax', name='prediction')(out_vggish)
     model = Model(model.input, out)
     model.summary()
     return model

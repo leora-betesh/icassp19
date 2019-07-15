@@ -2,9 +2,9 @@ ctrl:
   feat_ext: true
   learn: true
   train_data: all
-  dataset_path: 'data/10classes_reversed'
-  model: "baseline"
-  vggish_weights_path: ''
+  dataset_path: 'data//10classes_reversed'
+  model: "vggsih"
+  vggish_weights_path: 'weights/vggish_audioset_weights.h5'
 extract:
   audio_len_s: 2
   eps: 2.220446049250313e-16

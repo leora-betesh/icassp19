@@ -378,8 +378,11 @@ else:
 tr_loss, val_loss = [0] * params_learn.get('n_epochs'), [0] * params_learn.get('n_epochs')
 # ============================================================
 if params_ctrl.get('learn'):
-    #model = get_model_baseline(params_learn=params_learn, params_extract=params_extract)
-    model = get_vggish_model(path_weights=path_weights, params_extract=params_extract)
+    if params_ctrl.get('model') == "vggish":
+        model = get_vggish_model(path_weights=path_weights, params_extract=params_extract)
+    else:
+        model = get_model_baseline(params_learn=params_learn, params_extract=params_extract)
+        
     opt = Adam(lr=params_learn.get('lr'))
     model.compile(optimizer=opt, loss=params_loss.get('type'), metrics=['accuracy'])
 
